@@ -5,10 +5,12 @@ on:
     branches:
       - develop # Branch principal do Juice Shop
       - main # Caso o leitor use 'main' em seu fork
+      - master # Caso o leitor use 'master' em seu fork
   pull_request:
     branches:
       - develop
       - main
+      - master
   workflow_dispatch: # Permite acionamento manual
 
 jobs:
@@ -23,7 +25,7 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Lint YAML files (ex: este próprio workflow)
+      - name: Lint YAML files # (ex: este próprio workflow)
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: .github/workflows/
