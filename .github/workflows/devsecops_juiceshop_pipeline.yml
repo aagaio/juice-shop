@@ -101,7 +101,7 @@ jobs:
 
       - name: Download OWASP Dependency-Check
         run: |
-          DC_VERSION="12.3.0" # Verifique a última versão
+          DC_VERSION="12.1.0" # Verifique a última versão
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dependency-check-${DC_VERSION}-release.zip
 
@@ -154,7 +154,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Scan da Imagem Docker Oficial com Trivy
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@latest
         with:
           image-ref: 'bkimminich/juice-shop:latest' # Usar a imagem oficial mais recente
           format: 'sarif'
