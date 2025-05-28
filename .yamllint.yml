@@ -1,82 +1,68 @@
 # .yamllint.yml
-
-# Estende a configuração padrão. É uma boa prática começar por aqui.
 extends: default
 
-# Regras a serem aplicadas ou sobrescritas.
-# Você pode encontrar a lista completa de regras com `yamllint --list-rules`
 rules:
   # --- Linhas ---
   line-length:
-    max: 120             # Comprimento máximo da linha (padrão é 80)
-    level: warning       # Define como aviso em vez de erro, pois às vezes é inevitável
+    max: 120
+    level: warning # Define como aviso em vez de erro
 
-  trailing-spaces: enable # Garante que não haja espaços no final das linhas (nível: error por padrão)
-  new-line-at-end-of-file: enable # Garante uma nova linha no final do arquivo (nível: error por padrão)
+  trailing-spaces: enable # Evita espaços no final das linhas
+  new-line-at-end-of-file: enable # Garante que arquivos terminem com uma nova linha
+
   empty-lines:
-    max: 2               # Máximo de linhas em branco consecutivas
-    max-start: 0         # Máximo de linhas em branco no início do arquivo
-    max-end: 1           # Máximo de linhas em branco no final do arquivo
+    max: 2
+    max-start: 0
+    max-end: 1
 
   # --- Indentação ---
   indentation:
-    spaces: consistent   # Usa espaços para indentação (não tabs)
-    indent-sequences: true # Indenta sequências (listas) de forma consistente
-    check-multi-line-strings: false # Não verifica indentação dentro de strings multi-linha (pode ser útil para scripts)
-    width: 2             # Largura da indentação (2 espaços é comum em YAML)
+    spaces: consistent
+    indent-sequences: true
+    width: 2 # Define indentação de 2 espaços
 
   # --- Chaves e Valores ---
-  key-duplicates: enable # Verifica chaves duplicadas (nível: error por padrão)
-  key-ordering: disable  # Desabilita a verificação de ordem alfabética das chaves (pode ser muito restritivo)
+  key-duplicates: enable # Evita chaves duplicadas
+  key-ordering: disable # Ordem das chaves não será verificada
 
   # --- Aspas e Strings ---
   quoted-strings:
-    quote-type: 'single' # Prefere aspas simples quando necessário
-    required: false      # Não exige aspas em todas as strings, apenas quando necessário (ex: caracteres especiais)
-    extra-allowed: ['double'] # Permite aspas duplas se já estiverem sendo usadas
+    quote-type: single
+    required: false
+    extra-allowed: ['double']
 
   # --- Booleanos ---
   truthy:
-    level: error         # Evita valores como "yes", "no", "on", "off". Prefira `true` ou `false`.
+    level: error
     allowed-values: ['true', 'false']
 
   # --- Comentários ---
   comments:
     level: warning
-    require-starting-space: true # Exige um espaço após o '#' do comentário (ex: `# comentario`)
-    min-spaces-from-content: 1   # Mínimo de espaços entre o conteúdo e o comentário na mesma linha
+    require-starting-space: true
+    min-spaces-from-content: 1
 
-  comments-indentation: enable # Comentários devem seguir a indentação do bloco (nível: warning por padrão)
+  comments-indentation: enable
 
   # --- Documentos ---
   document-start:
-    present: true        # Exige '---' no início de cada documento YAML (bom para múltiplos docs em um arquivo)
-    level: warning       # Avisa, mas não falha, se '---' estiver faltando
+    present: true
+    level: warning
 
   document-end:
-    present: false       # Não exige '...' no final do documento (geralmente desnecessário)
+    present: false
 
-  # --- Espaçamento (geralmente já cobertos pelo 'default', mas pode ajustar) ---
-  braces: # Para {} (flow mappings)
-    min-spaces-inside: 0
-    max-spaces-inside: 0 # ou 1 se preferir { key: value }
-    min-spaces-outside: 0
-    max-spaces-outside: 0
-  brackets: # Para [] (flow sequences)
-    min-spaces-inside: 0
-    max-spaces-inside: 0
-    min-spaces-outside: 0
-    max-spaces-outside: 0
+  # --- Espaçamento ---
   colons:
     max-spaces-before: 0
-    max-spaces-after: 1 # Exige um espaço após ':', ex: `key: value`
+    max-spaces-after: 1
+
   commas:
     max-spaces-before: 0
     min-spaces-after: 1
     max-spaces-after: 1
 
-# Arquivos e diretórios a serem ignorados pelo yamllint
-# Use sintaxe de glob (como no .gitignore)
+# Ignorar arquivos e diretórios que não devem ser validados
 ignore: |
   .git/
   .venv/
@@ -86,7 +72,3 @@ ignore: |
   build/
   dist/
   *.egg-info/
-  # Adicione aqui outros padrões de arquivos/diretórios que você não quer lintar
-  # Exemplo: templates que podem ter sintaxe YAML "quebrada" até serem processados
-  # templates_jinja2/
-  # **/secrets.enc.yml # Se você tem arquivos YAML encriptados
