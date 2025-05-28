@@ -91,7 +91,6 @@ jobs:
           # Converter o JSON do npm audit para SARIF (requer uma ferramenta/script customizado)
           npm install -g npm-audit-sarif-formatter
           npm-audit-sarif-formatter -i npm-audit-results.json -o npm-audit.sarif || echo "Falha ao converter npm audit para SARIF"
-          echo "Conversão de NPM Audit para SARIF requer ferramenta externa ou script. Pulando upload SARIF por enquanto."
       
       - name: Upload do relatório SARIF do NPM Audit para artifacts
         uses: actions/upload-artifact@v4
@@ -214,7 +213,6 @@ jobs:
           # Loop simples para esperar o Juice Shop responder antes de iniciar o ZAP
           timeout 120s bash -c 'until curl -s http://localhost:3000 > /dev/null; do echo -n "."; sleep 5; done'
           echo "Juice Shop iniciado!"
-
 
       - name: Executar OWASP ZAP Baseline Scan no Juice Shop
         uses: zaproxy/action-baseline@v0.14.0
