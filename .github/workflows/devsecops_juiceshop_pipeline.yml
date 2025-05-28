@@ -85,11 +85,10 @@ jobs:
         with:
           node-version: '18' # Use uma versão LTS compatível com o Juice Shop
 
-      - name: Instalar dependências do frontend (se separado) e backend
+      - name: Instalar dependências e gerar package-lock.json
         run: |
-          # O Juice Shop pode ter um setup mais complexo, este é um exemplo simplificado
-          # Pode ser necessário navegar para subdiretórios se o package.json não estiver na raiz
-          npm ci # Usa package-lock.json para instalações consistentes
+          npm install # Gera o package-lock.json atualizado
+          npm audit --json > npm-audit-results.json || true
 
       # Exemplo com NPM Audit
       - name: Executar NPM Audit e gerar SARIF
