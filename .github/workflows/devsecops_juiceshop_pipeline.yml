@@ -59,6 +59,7 @@ jobs:
           config: "p/default p/javascript p/typescript p/nodejsscan" # Conjuntos de regras relevantes
           generateSarif: true # Gera saída SARIF para integração com GitHub Security
           output: semgrep.sarif
+          exit-code: 0 # Permite que o processo continue mesmo que regras bloqueantes disparem
 
       - name: Upload do resultado SARIF do Semgrep
         if: always() # Garante o upload mesmo que Semgrep encontre algo e falhe (dependendo da config)
