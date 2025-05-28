@@ -137,11 +137,12 @@ jobs:
       - name: Executar Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
+          GITLEAKS_EXIT_CODE: 0
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Para reports mais ricos, se a action suportar
         with:
-          # report_format: 'sarif' # Verifique se a action suporta SARIF diretamente
-          # report_path: 'gitleaks-report.sarif'
-          fail: false # Para fins didáticos, não falhar o build
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+          report_format: 'sarif' 
+          report_path: 'gitleaks-report.sarif'
 
   # === ETAPA DE SCAN DE IMAGEM DE CONTAINER (USANDO IMAGEM OFICIAL DO JUICE SHOP) ===
   scan-official-juice-shop-image:
