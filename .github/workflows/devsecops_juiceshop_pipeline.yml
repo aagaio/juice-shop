@@ -62,6 +62,7 @@ jobs:
           exit-code: 0 # Permite que o processo continue mesmo que regras bloqueantes disparem
 
       - name: Verificar arquivos gerados
+        if: always()
         run: ls -lart
 
       - name: Upload do resultado SARIF do Semgrep
