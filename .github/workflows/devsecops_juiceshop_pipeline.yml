@@ -62,7 +62,7 @@ jobs:
           exit-code: 0 # Permite que o processo continue mesmo que regras bloqueantes disparem
 
       - name: Verificar arquivos gerados
-        run: ls -l
+        run: ls -lart
 
       - name: Upload do resultado SARIF do Semgrep
         if: always() # Garante o upload mesmo que Semgrep encontre algo e falhe (dependendo da config)
@@ -93,8 +93,7 @@ jobs:
       - name: Instalar dependências e gerar package-lock.json
         run: |
           npm install # Gera o package-lock.json atualizado
-          npm audit --json > npm-audit-results.json || true
-
+    
       # Exemplo com NPM Audit
       - name: Executar NPM Audit e gerar SARIF
         run: |
