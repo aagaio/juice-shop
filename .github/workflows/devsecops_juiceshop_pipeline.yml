@@ -61,6 +61,9 @@ jobs:
           output: semgrep.sarif
           exit-code: 0 # Permite que o processo continue mesmo que regras bloqueantes disparem
 
+      - name: Verificar arquivos gerados
+        run: ls -l
+
       - name: Upload do resultado SARIF do Semgrep
         if: always() # Garante o upload mesmo que Semgrep encontre algo e falhe (dependendo da config)
         uses: github/codeql-action/upload-sarif@v3
