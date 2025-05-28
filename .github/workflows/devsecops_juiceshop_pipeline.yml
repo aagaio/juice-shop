@@ -114,7 +114,7 @@ jobs:
 
       - name: Download OWASP Dependency-Check
         run: |
-          DC_VERSION="11.0.0" # Verifique a última versão
+          DC_VERSION="12.1.0" # Verifique a última versão
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dependency-check-${DC_VERSION}-release.zip
 
@@ -126,7 +126,6 @@ jobs:
             --format SARIF \
             --out dependency-check-results.sarif \
             --enableExperimental \
-            --nvdCveUrlBase https://nvd.nist.gov/feeds/json/cve/1.1/ \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
             --failOnCVSS 7 || true # Falha se encontrar CVE com score CVSS 7 ou maior, mas continua para upload
 
