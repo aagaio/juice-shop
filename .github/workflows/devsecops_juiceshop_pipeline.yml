@@ -48,10 +48,6 @@ jobs:
       - name: Executar Semgrep localmente
         run: semgrep --config p/default --sarif --output semgrep.sarif || true # Executa sem integração com a plataforma
 
-      - name: Verificar arquivos gerados
-        if: always()
-        run: ls -lart
-
       - name: Upload do resultado SARIF do Semgrep
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -138,9 +134,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITLEAKS_EXIT_CODE: 0
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Para reports mais ricos, se a action suportar
         with:
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
           report_format: 'sarif' 
           report_path: 'gitleaks-report.sarif'
 
