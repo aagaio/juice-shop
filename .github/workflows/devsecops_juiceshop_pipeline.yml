@@ -47,6 +47,12 @@ jobs:
 
       - name: Executar Semgrep localmente
         run: semgrep --config p/default --sarif --output semgrep.sarif || true # Executa sem integração com a plataforma
+      
+      - name: Upload do relatório SARIF do Semgrep para artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep.sarif
 
       - name: Upload do resultado SARIF do Semgrep
         if: always()
@@ -112,6 +118,12 @@ jobs:
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
             --failOnCVSS 7 || true # Falha se encontrar CVE com score CVSS 7 ou maior, mas continua para upload
 
+      - name: Upload do relatório SARIF do Dependency-Check para artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dependency-Check-results
+          path: dependency-check-results.sarif
+
       - name: Upload do resultado SARIF do Dependency-Check
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -140,6 +152,12 @@ jobs:
           report_format: 'sarif' 
           report_path: 'gitleaks-report.sarif'
 
+      - name: Upload do relatório SARIF do Gitleaks para artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gitleaks-Results
+          path: gitleaks-report.sarif
+
   # === ETAPA DE SCAN DE IMAGEM DE CONTAINER (USANDO IMAGEM OFICIAL DO JUICE SHOP) ===
   scan-official-juice-shop-image:
     name: Scan da Imagem Docker Oficial do Juice Shop
@@ -159,6 +177,12 @@ jobs:
           severity: 'CRITICAL,HIGH' # Reportar apenas vulnerabilidades críticas e altas
           ignore-unfixed: true # Opcional: não falhar para vulnerabilidades sem correção disponível
           exit-code: '0' # Para fins didáticos, não falhar o build mesmo se encontrar algo
+            
+      - name: Upload do relatório SARIF do Trivy para artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Trivy-Results
+          path: trivy-juiceshop-official-results.sarif
 
       - name: Upload do resultado SARIF do Trivy (Imagem Oficial)
         uses: github/codeql-action/upload-sarif@v3
