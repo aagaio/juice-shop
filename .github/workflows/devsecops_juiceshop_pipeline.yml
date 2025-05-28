@@ -89,10 +89,15 @@ jobs:
         run: |
           npm audit --json > npm-audit-results.json || true
           # Converter o JSON do npm audit para SARIF (requer uma ferramenta/script customizado)
-          # Exemplo de ferramenta (pode precisar instalar): npm install -g npm-audit-sarif-formatter
-          # npm-audit-sarif-formatter -i npm-audit-results.json -o npm-audit.sarif || echo "Falha ao converter npm audit para SARIF"
+          npm install -g npm-audit-sarif-formatter
+          npm-audit-sarif-formatter -i npm-audit-results.json -o npm-audit.sarif || echo "Falha ao converter npm audit para SARIF"
           echo "Conversão de NPM Audit para SARIF requer ferramenta externa ou script. Pulando upload SARIF por enquanto."
-          # Como alternativa, usar o OWASP Dependency-Check que gera SARIF:
+      
+      - name: Upload do relatório SARIF do NPM Audit para artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: npm-audit.sarif
 
       # Exemplo com OWASP Dependency-Check (requer Java)
       - name: Configurar Java para Dependency-Check
