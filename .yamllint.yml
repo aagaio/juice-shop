@@ -27,8 +27,7 @@ rules:
   # --- Aspas e Strings ---
   quoted-strings:
     quote-type: single
-    required: false
-    extra-allowed: ['double']
+    required: only-when-needed # Permite aspas apenas quando necessário
 
   # --- Booleanos ---
   truthy:
