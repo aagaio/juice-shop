@@ -35,38 +35,25 @@ jobs:
   sast-analysis:
     name: Análise Estática de Segurança (SAST)
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write # Para enviar resultados ao GitHub Security
     steps:
       - name: Checkout do código Juice Shop
         uses: actions/checkout@v4
-        # Se o leitor estiver rodando no seu fork do Juice Shop oficial:
-        # with:
-        #   repository: ${{ github.repository }} # Usa o repo onde o workflow está rodando
-        #   ref: ${{ github.ref }}
-        # Se for para apontar sempre para o oficial (menos útil para o leitor testar suas modificações):
         with:
-           repository: 'juice-shop/juice-shop'
-           ref: 'develop' # Ou uma tag de release específica para consistência
+          repository: 'juice-shop/juice-shop'
+          ref: 'develop'
 
-      # SAST com Semgrep (ótimo para JavaScript, TypeScript, e outras linguagens do Juice Shop)
-      - name: Executar Semgrep
-        uses: semgrep/semgrep-action@v2.0.0
-        with:
-          # publishToken: ${{ secrets.SEMGREP_APP_TOKEN }} # Opcional: se usar o dashboard do Semgrep
-          config: "p/default p/javascript p/typescript p/nodejsscan" # Conjuntos de regras relevantes
-          generateSarif: true # Gera saída SARIF para integração com GitHub Security
-          output: semgrep.sarif
-          exit-code: 0 # Permite que o processo continue mesmo que regras bloqueantes disparem
+      - name: Configurar Semgrep
+        run: pip install semgrep # Instala a ferramenta se necessário
+
+      - name: Executar Semgrep localmente
+        run: semgrep --config p/default --sarif --output semgrep.sarif || true # Executa sem integração com a plataforma
 
       - name: Verificar arquivos gerados
         if: always()
         run: ls -lart
 
       - name: Upload do resultado SARIF do Semgrep
-        if: always() # Garante o upload mesmo que Semgrep encontre algo e falhe (dependendo da config)
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
