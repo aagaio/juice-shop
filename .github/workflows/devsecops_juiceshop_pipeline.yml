@@ -126,6 +126,7 @@ jobs:
             --format SARIF \
             --out dependency-check-results.sarif \
             --enableExperimental \
+            --nvdCveUrlBase https://nvd.nist.gov/feeds/json/cve/1.1/ \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
             --failOnCVSS 7 || true # Falha se encontrar CVE com score CVSS 7 ou maior, mas continua para upload
 
