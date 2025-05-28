@@ -5,10 +5,10 @@ rules:
   # --- Linhas ---
   line-length:
     max: 120
-    level: warning # Define como aviso em vez de erro
+    level: warning # Define como aviso, não erro
 
-  trailing-spaces: enable # Evita espaços no final das linhas
-  new-line-at-end-of-file: enable # Garante que arquivos terminem com uma nova linha
+  trailing-spaces: enable # Evita espaços desnecessários no final das linhas
+  new-line-at-end-of-file: enable # Garante uma linha em branco ao final do arquivo
 
   empty-lines:
     max: 2
@@ -19,11 +19,10 @@ rules:
   indentation:
     spaces: consistent
     indent-sequences: true
-    width: 2 # Define indentação de 2 espaços
 
   # --- Chaves e Valores ---
   key-duplicates: enable # Evita chaves duplicadas
-  key-ordering: disable # Ordem das chaves não será verificada
+  key-ordering: disable # Não obriga ordem alfabética das chaves
 
   # --- Aspas e Strings ---
   quoted-strings:
@@ -62,7 +61,7 @@ rules:
     min-spaces-after: 1
     max-spaces-after: 1
 
-# Ignorar arquivos e diretórios que não devem ser validados
+# Diretórios e arquivos a serem ignorados no lint
 ignore: |
   .git/
   .venv/
