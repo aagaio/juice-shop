@@ -89,7 +89,7 @@ jobs:
       - name: Executar NPM Audit e gerar SARIF
         run: |
           npm audit --json > npm-audit-results.json || true
-          # Converter o JSON do npm audit para SARIF (requer uma ferramenta/script customizado)
+          # Converter o JSON do npm audit para SARIF
           npm install -g npm-audit-sarif
           npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "Falha ao converter npm audit para SARIF"
       
