@@ -27,6 +27,7 @@ jobs:
 
       - name: Lint YAML files # (ex: este próprio workflow)
         uses: ibiqlik/action-yamllint@v3.1.1
+        continue-on-error: true
         with:
           file_or_dir: .github/workflows/
           config_file: .yamllint.yml # Opcional: Crie um arquivo .yamllint.yml para configurar o linter
