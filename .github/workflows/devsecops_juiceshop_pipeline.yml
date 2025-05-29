@@ -89,8 +89,8 @@ jobs:
         run: |
           npm audit --json > npm-audit-results.json || true
           # Converter o JSON do npm audit para SARIF (requer uma ferramenta/script customizado)
-          npm install -g npm-audit-sarif-formatter
-          npm-audit-sarif-formatter -i npm-audit-results.json -o npm-audit.sarif || echo "Falha ao converter npm audit para SARIF"
+          npm install -g npm-audit-sarif
+          npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "Falha ao converter npm audit para SARIF"
       
       - name: Upload do relatório SARIF do NPM Audit para artifacts
         uses: actions/upload-artifact@v4
