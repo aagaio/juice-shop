@@ -153,7 +153,7 @@ jobs:
       - name: Executar NPM Audit e gerar SARIF
         run: |
           echo "Executando npm audit..."
-          npm audit --json > npm-audit-results.json || true # Captura o JSON mesmo com vulnerabilidades
+          npm audit --audit-level=low --json > npm-audit-results.json || true # Captura o JSON mesmo com vulnerabilidades
           echo "Instalando npm-audit-sarif para conversão..."
           npm install -g npm-audit-sarif
           echo "Convertendo resultado do npm audit para SARIF..."
