@@ -4,9 +4,9 @@ name: DevSecOps Pipeline para OWASP Juice Shop
 on:
   push:
     branches:
-      - develop # Branch principal do projeto OWASP Juice Shop
-      - main # Caso o leitor use 'main' como branch principal em seu fork
-      - master # Caso o leitor use 'master' como branch principal em seu fork
+      - develop # Branch principal do projeto OWASP Juice Shop (se o leitor forkar e usar esta branch)
+      - main    # Caso o leitor use 'main' como branch principal em seu fork
+      - master  # Caso o leitor use 'master' como branch principal em seu fork
   pull_request:
     branches:
       - develop
@@ -16,420 +16,404 @@ on:
 
 jobs:
   # =====================================================================================
-  # ETAPA 1: LINTING E FORMATAÇÃO
-  # Objetivo: Garantir que os arquivos de configuração da pipeline e scripts auxiliares
-  # (se houver) sigam padrões de qualidade e formatação.
-  # Para um projeto real, esta etapa seria expandida para incluir linters específicos
-  # para o código da aplicação (ex: ESLint para JavaScript/Angular, linters para Node.js).
+  # ETAPA 1: LINTING DE ARQUIVOS DA PIPELINE
+  # Objetivo: Garantir que os arquivos de configuração da pipeline (como este próprio
+  # arquivo YAML) sigam padrões de qualidade e formatação.
+  # Ferramenta: yamllint
   # =====================================================================================
   lint-files:
     name: Linting de Arquivos da Pipeline (YAML)
-    runs-on: ubuntu-latest # Define o tipo de máquina virtual para executar o job
+    runs-on: ubuntu-latest # Define a máquina virtual para executar o job
     steps:
-      # Passo 1.1: Baixar o código do repositório para o ambiente do runner
-      - name: Checkout do código do repositório
+      # Passo 1.1: Baixar o código do repositório do leitor para o ambiente do runner.
+      # Isso é necessário para que o linter possa acessar o arquivo de workflow e o .yamllint.yml.
+      - name: Checkout do código do repositório (fork do leitor)
         uses: actions/checkout@v4 # Action oficial do GitHub para checkout
 
-      # Passo 1.2: Verificar a sintaxe e estilo dos arquivos YAML no diretório .github/workflows
-      # Isso ajuda a pegar erros no próprio arquivo do workflow.
+      # Passo 1.2: Verificar a sintaxe e estilo dos arquivos YAML no diretório .github/workflows.
       - name: Lint dos arquivos YAML da pipeline
         uses: ibiqlik/action-yamllint@v3.1.1 # Action da comunidade para yamllint
-        continue-on-error: true # Permite que o workflow continue mesmo se o linter encontrar avisos (para fins didáticos)
+        continue-on-error: true # Para fins didáticos, o workflow continua mesmo se o linter encontrar apenas avisos.
         with:
           file_or_dir: .github/workflows/ # Diretório a ser verificado
-          config_file: .yamllint.yml # Opcional: Arquivo de configuração customizado para o yamllint (se você criou ele)
+          config_file: .yamllint.yml      # Arquivo de configuração customizado para o yamllint (criado pelo leitor).
 
   # =====================================================================================
   # ETAPA 2: ANÁLISE ESTÁTICA DE SEGURANÇA DE APLICAÇÃO (SAST)
-  # Objetivo: Analisar o código-fonte em busca de padrões de vulnerabilidades conhecidas
-  # sem executar a aplicação.
+  # Objetivo: Analisar o código-fonte do fork do leitor em busca de padrões de
+  # vulnerabilidades conhecidas, sem executar a aplicação.
   # Ferramentas: Semgrep e GitHub CodeQL
   # =====================================================================================
   sast-analysis:
     name: Análise Estática de Segurança (SAST com Semgrep e CodeQL)
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write # Necessário para o CodeQL enviar resultados para a aba Security
+    permissions: # Permissões necessárias para as actions deste job
+      actions: read      # Para o CodeQL ler informações do workflow
+      contents: read     # Para fazer checkout do código
+      security-events: write # Para Semgrep e CodeQL enviarem resultados para a aba Security
     steps:
-      # Passo 2.1: Baixar o código-fonte do OWASP Juice Shop
-      # Usamos o repositório oficial para garantir que estamos analisando a versão correta.
-      - name: Checkout do código do OWASP Juice Shop
+      # Passo 2.1: Baixar o código-fonte do fork do leitor.
+      # As ferramentas SAST analisarão este código.
+      - name: Checkout do código do repositório (fork do leitor)
         uses: actions/checkout@v4
+        # Por padrão, faz checkout do branch que acionou o workflow.
+        # Se o leitor quiser sempre analisar uma branch específica do fork (ex: 'develop'),
+        # ele pode adicionar:
+        # with:
+        #   ref: 'develop'
 
       # --- SAST com Semgrep ---
-      # Passo 2.2: Instalar a ferramenta Semgrep
+      # Passo 2.2: Instalar a ferramenta Semgrep.
       - name: Configurar Semgrep
-        run: pip install semgrep # Instala Semgrep via pip
+        run: pip install semgrep
 
-      # Passo 2.3: Executar o Semgrep com um conjunto de regras padrão (p/default)
-      # O resultado é salvo no formato SARIF, um padrão para resultados de análise estática.
-      # "|| true" garante que o workflow continue mesmo se o Semgrep encontrar vulnerabilidades (para fins didáticos).
+      # Passo 2.3: Executar o Semgrep com um conjunto de regras padrão (p/default).
+      # O resultado é salvo no formato SARIF.
+      # "|| true" garante que o workflow continue mesmo se o Semgrep encontrar vulnerabilidades (fins didáticos).
       - name: Executar Semgrep
         run: semgrep scan --config "p/default" --sarif --output semgrep.sarif || true
 
-      # Passo 2.4: Fazer upload do relatório SARIF do Semgrep como um artefato do workflow
-      # Isso permite que você baixe e analise o relatório completo depois.
-      - name: Upload do relatório SARIF do Semgrep (Artefato)
+      # Passo 2.4: Fazer upload do relatório SARIF do Semgrep como um artefato do workflow.
+      # Isso permite que o leitor baixe e analise o relatório completo.
+      - name: Upload do relatório SARIF do Semgrep (Artefato para download)
         uses: actions/upload-artifact@v4
         with:
           name: semgrep-results
           path: semgrep.sarif
+          if-no-files-found: warn # Apenas avisa se o arquivo não for encontrado
 
-      # Passo 2.5: Enviar o relatório SARIF do Semgrep para a aba "Security" -> "Code scanning alerts" do GitHub
-      # "if: always()" garante que este passo execute mesmo se o anterior (execução do Semgrep) falhar (por ter encontrado vulnerabilidades).
+      # Passo 2.5: Enviar o relatório SARIF do Semgrep para a aba "Security" -> "Code scanning alerts" do GitHub.
       - name: Upload do resultado SARIF do Semgrep para GitHub Security
-        if: always()
+        # "if: always()" garante que este passo execute mesmo se o anterior (execução do Semgrep)
+        # falhar por ter encontrado vulnerabilidades (já que usamos "|| true" acima).
+        # "hashFiles('semgrep.sarif') != ''" garante que só tentamos o upload se o arquivo existir e não estiver vazio.
+        if: always() && hashFiles('semgrep.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
           category: semgrep-juiceshop # Categoria para agrupar os alertas no GitHub
 
       # --- SAST com GitHub CodeQL ---
-      # O CodeQL é uma poderosa engine de análise semântica do GitHub.
-      # Passo 2.6: Inicializar o CodeQL. Ele detecta a linguagem (Node.js/JavaScript para Juice Shop) e configura a análise.
+      # Passo 2.6: Inicializar o CodeQL.
+      # Ele detecta a linguagem (Node.js/JavaScript para Juice Shop) e configura a análise.
       - name: Inicializar CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v3 # Verifique a versão mais recente
         with:
-          languages: javascript # Especificamos JavaScript/TypeScript para o Juice Shop
+          languages: javascript # Especifica as linguagens a serem analisadas
 
-      # (Opcional) Se o projeto precisasse ser compilado (ex: Java, C#), o passo de build viria aqui.
-      # Para o Juice Shop (Node.js), o CodeQL geralmente consegue analisar sem um passo de build explícito aqui.
-
-      # Passo 2.7: Executar a análise do CodeQL
+      # Passo 2.7: Executar a análise do CodeQL.
+      # O CodeQL compila o código (se necessário) e executa as queries de segurança.
+      # Os resultados são automaticamente enviados para a aba Security pela action 'analyze'.
       - name: Executar Análise CodeQL
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v3 # Verifique a versão mais recente
         with:
-          category: codeql-juiceshop # Categoria para os alertas do CodeQL
-
-      # O CodeQL automaticamente faz o upload dos resultados para a aba Security se configurado corretamente.
-      # O passo de upload-sarif para o CodeQL é implicitamente feito pela action 'analyze'.
+          category: codeql-juiceshop # Categoria para os alertas do CodeQL na aba Security
 
   # =====================================================================================
   # ETAPA 3: ANÁLISE DE COMPOSIÇÃO DE SOFTWARE (SCA) E GERAÇÃO DE SBOM
-  # Objetivo: Identificar componentes de terceiros (dependências) e suas vulnerabilidades
-  # conhecidas. Também geraremos um Software Bill of Materials (SBOM).
-  # Ferramentas: NPM Audit, OWASP Dependency-Check, cdxgen
+  # Objetivo: Identificar componentes de terceiros (dependências) no fork do leitor
+  # e suas vulnerabilidades conhecidas. Também geraremos um Software Bill of Materials (SBOM).
+  # Ferramentas: NPM Audit, cdxgen (para SBOM), OWASP Dependency-Check
   # =====================================================================================
   sca-analysis:
     name: Análise de Composição de Software (SCA) e Geração de SBOM
     runs-on: ubuntu-latest
     permissions:
-      contents: read # Necessário para checkout e para Dependency-Check ler arquivos
-      security-events: write # Necessário para Dependency-Check (via upload-sarif) enviar resultados para a aba Security
+      contents: read
+      security-events: write
     steps:
-      # Passo 3.1: Baixar o código-fonte do OWASP Juice Shop
-      - name: Checkout do código do OWASP Juice Shop
+      # Passo 3.1: Baixar o código-fonte do fork do leitor.
+      - name: Checkout do código do repositório (fork do leitor)
         uses: actions/checkout@v4
 
-      # Passo 3.2: Configurar o ambiente Node.js para instalar dependências
+      # Passo 3.2: Configurar o ambiente Node.js.
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18' # Versão LTS compatível com o Juice Shop
 
-      # Passo 3.3: Instalar as dependências do projeto.
-      # Isso é crucial para que ferramentas de SCA possam identificar os pacotes e versões corretas.
-      # O comando 'npm install' também gera/atualiza o 'package-lock.json', que é usado por muitas ferramentas SCA.
-      - name: Instalar dependências (gera package-lock.json)
+      # Passo 3.3: Gerar/Atualizar package-lock.json ignorando scripts do projeto.
+      # Isto garante que o package-lock.json esteja presente e atualizado
+      # com base no package.json, para uso pelas ferramentas SCA, sem executar
+      # scripts de build do Juice Shop (como 'postinstall') que podem falhar neste contexto.
+      - name: Gerar/Atualizar package-lock.json (ignorando scripts)
         run: |
-           npm install --package-lock-only --ignore-scripts
-           ls -la
+          echo "Gerando/Atualizando package-lock.json (ignorando scripts)..."
+          npm install --package-lock-only --ignore-scripts
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::Arquivo package-lock.json não foi gerado/atualizado."
+            exit 1 # Fundamental para os próximos steps de SCA
+          else
+            echo "package-lock.json gerado/atualizado com sucesso."
+            ls -la package-lock.json # Mostra detalhes do arquivo gerado
+          fi
 
       # --- SCA com NPM Audit ---
-      # Passo 3.4: Executar 'npm audit' para encontrar vulnerabilidades nas dependências Node.js.
-      # O resultado JSON é convertido para SARIF para integração com o GitHub Security.
+      # Passo 3.4: Executar 'npm audit' e converter o resultado para SARIF.
       - name: Executar NPM Audit e gerar SARIF
         run: |
-          npm audit --json > npm-audit-results.json || true # "|| true" para não falhar o build se encontrar vulnerabilidades
-          # Instala a ferramenta de conversão npm-audit-sarif
+          echo "Executando npm audit..."
+          npm audit --json > npm-audit-results.json || true # Captura o JSON mesmo com vulnerabilidades
+          echo "Instalando npm-audit-sarif para conversão..."
           npm install -g npm-audit-sarif
-          # Converte o JSON do npm audit para o formato SARIF
-          npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "Falha ao converter npm audit para SARIF. O arquivo de resultados pode estar vazio ou malformado."
+          echo "Convertendo resultado do npm audit para SARIF..."
+          npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "::warning::Falha ao converter npm audit para SARIF. O arquivo de resultados pode estar vazio ou malformado."
 
       # Passo 3.5: Fazer upload do relatório SARIF do NPM Audit como artefato.
-      - name: Upload do relatório SARIF do NPM Audit (Artefato)
+      - name: Upload do relatório SARIF do NPM Audit (Artefato para download)
         uses: actions/upload-artifact@v4
         with:
-          name: npm-audit-results # Nome do artefato
-          path: npm-audit.sarif # Caminho para o arquivo a ser carregado
+          name: npm-audit-scan-results
+          path: npm-audit.sarif
+          if-no-files-found: warn
+
+      # Passo 3.6: Enviar o relatório SARIF do NPM Audit para a aba Security do GitHub.
+      - name: Upload do resultado SARIF do NPM Audit para GitHub Security
+        if: always() && hashFiles('npm-audit.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: npm-audit.sarif
+          category: npm-audit-juiceshop
 
       # --- Geração de SBOM com cdxgen (CycloneDX) ---
-      # Passo 3.6: Gerar o Software Bill of Materials (SBOM) no formato CycloneDX.
-      # O SBOM é uma lista de todos os componentes de software, essencial para a segurança da cadeia de suprimentos.
-      # Adicionamos --project-type nodejs para focar na análise das dependências Node.js.
-      - name: Gerar SBOM com cdxgen
+      # Passo 3.7: Gerar o Software Bill of Materials (SBOM) no formato CycloneDX.
+      - name: Gerar SBOM com cdxgen (CycloneDX)
         run: |
-          echo "Gerando SBOM para o projeto Node.js..."
-          echo "Verificando se package-lock.json existe..."
-          if [ ! -f "package-lock.json" ]; then
-            echo "::error::Arquivo package-lock.json não encontrado para cdxgen."
-            exit 1 # Manter este exit 1, pois sem lockfile o cdxgen não funciona
-          fi
-          echo "Gerando SBOM especificamente do package-lock.json..."
-          # Usamos 'npx' para executar a versão mais recente sem instalação global.
-          # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
-          # O output (-o) será bom.json.
-          npx @cyclonedx/cdxgen --project-type nodejs --output bom.json --spec-version 1.6 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          echo "Gerando SBOM especificamente a partir do package-lock.json..."
+          # O comando foca apenas no package-lock.json como input.
+          npx @cyclonedx/cdxgen --output bom.json --spec-version 1.6 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           
           if [ ! -f bom.json ]; then
-            echo "::error::Arquivo bom.json NÃO foi gerado pelo cdxgen."
-            # Mudar para um aviso ou remover o exit se quiser que o workflow continue mesmo sem SBOM
-            # exit 1 
-            echo "::warning::Arquivo bom.json NÃO foi gerado pelo cdxgen."
+            echo "::error::Arquivo bom.json (SBOM) NÃO foi gerado pelo cdxgen."
+            # Considerar 'exit 1' se o SBOM for mandatório para o laboratório.
+            # Para fins didáticos, um aviso pode ser suficiente se outros steps precisarem rodar.
+            echo "::warning::Arquivo bom.json (SBOM) NÃO foi gerado pelo cdxgen."
           else
-            echo "SBOM gerado com sucesso: bom.json"
-            # head -n 20 bom.json # Opcional para logs
+            echo "SBOM (bom.json) gerado com sucesso."
+            # head -n 20 bom.json # Descomente para ver o início do SBOM nos logs
           fi
       
-      # Passo 3.7: Fazer upload do SBOM gerado como artefato.
-      - name: Upload do SBOM (bom.json) como Artefato
+      # Passo 3.8: Fazer upload do SBOM gerado (bom.json) como artefato.
+      - name: Upload do SBOM CycloneDX (bom.json) como Artefato
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-cyclonedx
+          name: sbom-cyclonedx-juiceshop
           path: bom.json
+          if-no-files-found: warn # Apenas avisa se o SBOM não foi gerado
 
       # --- SCA com OWASP Dependency-Check ---
-      # Passo 3.8: Configurar Java, pois Dependency-Check é uma ferramenta Java.
+      # Passo 3.9: Configurar Java, pois Dependency-Check é uma ferramenta Java.
       - name: Configurar Java para Dependency-Check
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin' # Distribuição recomendada do OpenJDK
-          java-version: '11' # Versão compatível com Dependency-Check (verificar documentação para a mais recente)
+          distribution: 'temurin'
+          java-version: '11' # Verifique a versão recomendada para o Dependency-Check
 
-      # Passo 3.9: Baixar a ferramenta OWASP Dependency-Check CLI.
+      # Passo 3.10: Baixar a ferramenta OWASP Dependency-Check CLI.
       - name: Download OWASP Dependency-Check
         run: |
-          DC_VERSION="12.1.0" # VERIFIQUE SEMPRE A ÚLTIMA VERSÃO ESTÁVEL NO GITHUB DO PROJETO!
+          DC_VERSION="12.1.0" # ATENÇÃO: Verifique e use a última versão estável!
+          echo "Baixando OWASP Dependency-Check versão ${DC_VERSION}..."
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip
           unzip dependency-check-${DC_VERSION}-release.zip
 
-      # Passo 3.10: Executar o OWASP Dependency-Check.
-      # Requer uma NVD_API_KEY (configurada como secret no GitHub) para buscar dados de vulnerabilidades do NVD.
-      # "--failOnCVSS 7" faria o step falhar se encontrasse CVEs com score >= 7. Adicionamos "|| true" para fins didáticos.
+      # Passo 3.11: Executar o OWASP Dependency-Check.
       - name: Executar OWASP Dependency-Check
+        # 'continue-on-error: true' permite que o workflow continue mesmo se o script interno do DC
+        # falhar com códigos de erro (ex: devido a arquivos ZIP de teste no Juice Shop).
+        # O relatório SARIF das dependências principais geralmente é gerado antes desses erros.
+        continue-on-error: true 
         run: |
           echo "Iniciando OWASP Dependency-Check..."
           ./dependency-check/bin/dependency-check.sh \
             --scan . \
-            --project "OWASP-Juice-Shop" \
+            --project "OWASP-Juice-Shop-Fork" \
             --format SARIF \
             --out dependency-check-results.sarif \
             --enableExperimental \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
             --log dependency-check.log \
-            --failOnCVSS 11 # Mantemos para clareza, mas o continue-on-error abaixo lida com a falha
-            
+            --failOnCVSS 11 # Define um threshold alto para não falhar o build por CVEs (fins didáticos)
+          
           echo "Listando arquivos após Dependency-Check:"
-          ls -la
+          ls -la . # Lista o diretório atual
           
           if [ ! -f dependency-check-results.sarif ]; then
-            echo "::error::Arquivo dependency-check-results.sarif não foi gerado pelo Dependency-Check."
-            # Considerar falhar o build aqui se o SARIF é mandatório
-            # exit 1 
+            echo "::error::Arquivo dependency-check-results.sarif NÃO foi gerado."
+            if [ -f dependency-check.log ]; then
+              echo "Conteúdo do log de depuração do Dependency-Check (últimas 50 linhas):"
+              tail -n 50 dependency-check.log # Mostra o final do log para depuração
+            else
+              echo "Log de depuração do Dependency-Check (dependency-check.log) não encontrado."
+            fi
+            # Não usamos 'exit 1' aqui devido ao continue-on-error no nível do step.
           else
-            echo "Dependency-Check concluído. Relatório: dependency-check-results.sarif"
+            echo "Dependency-Check concluído. Relatório SARIF: dependency-check-results.sarif"
           fi
-        continue-on-error: true # Permite que o workflow continue mesmo se o script interno do DC falhar com exit code 14
-                                # Isso é aceitável aqui porque sabemos que o SARIF é gerado antes desses erros de análise de ZIP.
 
-      # Passo 3.11: Fazer upload do relatório SARIF do Dependency-Check como artefato.
-      - name: Upload do relatório SARIF do Dependency-Check (Artefato)
+      # Passo 3.12: Fazer upload do relatório SARIF do Dependency-Check como artefato.
+      - name: Upload do relatório SARIF do Dependency-Check (Artefato para download)
         uses: actions/upload-artifact@v4
         with:
-          name: Dependency-Check-results
+          name: Dependency-Check-Scan-Results
           path: dependency-check-results.sarif
+          if-no-files-found: warn # Apenas avisa se o arquivo não for encontrado
 
-      # Passo 3.12: Enviar o relatório SARIF do Dependency-Check para a aba "Security" do GitHub.
+      # Passo 3.13: Enviar o relatório SARIF do Dependency-Check para a aba "Security" do GitHub.
       - name: Upload do resultado SARIF do Dependency-Check para GitHub Security
-        if: always() # Garante que o upload ocorra mesmo se o step anterior falhar
+        if: always() && hashFiles('dependency-check-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: dependency-check-results.sarif
-          category: sca-juiceshop # Categoria para agrupar alertas no GitHub
+          category: owasp-dependency-check-juiceshop
 
   # =====================================================================================
   # ETAPA 4: SCAN DE SEGREDOS
   # Objetivo: Verificar se há segredos (senhas, chaves de API, tokens) commitados
-  # acidentalmente no código-fonte, INCLUINDO O HISTÓRICO COMPLETO.
+  # acidentalmente no código-fonte do fork, INCLUINDO O HISTÓRICO COMPLETO.
   # Ferramenta: Gitleaks
   # =====================================================================================
   secrets-scan:
     name: Varredura de Segredos com Gitleaks
     runs-on: ubuntu-latest
     permissions:
-      contents: read # Necessário para o checkout
-      security-events: write # Necessário para fazer upload do SARIF para a aba Security
-      actions: read # Para que a action Gitleaks possa usar o GITHUB_TOKEN
+      contents: read
+      security-events: write 
+      actions: read 
     steps:
-      # Passo 4.1: Baixar o código-fonte do OWASP Juice Shop COM HISTÓRICO COMPLETO.
-      # fetch-depth: 0 é crucial para que o Gitleaks possa analisar todo o histórico de commits.
-      - name: Checkout do código Juice Shop (com histórico completo)
+      # Passo 4.1: Baixar o código-fonte do fork do leitor COM HISTÓRICO COMPLETO.
+      - name: Checkout do código do repositório (fork do leitor, com histórico completo)
         uses: actions/checkout@v4
         with:
-           fetch-depth: 0 # Crucial para Gitleaks analisar todo o histórico do fork
+           fetch-depth: 0 # Crucial para Gitleaks analisar todo o histórico
 
       # Passo 4.2: Executar Gitleaks.
-      # A action gitleaks/gitleaks-action@v2 gerará um relatório SARIF.
-      # Vamos usar variáveis de ambiente para controlar o nome e formato do relatório.
       - name: Executar Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v2 # Verifique a versão mais recente
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necessário para a action interagir com a API do GitHub (ex: reports enriquecidos)
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false" # DESABILITAMOS o upload automático pela action para ter mais controle
-          GITLEAKS_REPORT_FORMAT: "sarif"          # Definimos explicitamente o formato
-          GITLEAKS_EXIT_CODE: "0"                  # Para fins didáticos, não falha o build se segredos forem encontrados
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_REPORT_FORMAT: "sarif"
+          GITLEAKS_REPORT_PATH: "gitleaks-report.sarif" # Define o nome do arquivo de saída
+          GITLEAKS_EXIT_CODE: "0" # Para fins didáticos, não falha o build se segredos forem encontrados
+          # GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false" # Desabilitar se quisermos controlar o upload nós mesmos
 
-      # Passo 4.3: Renomear o relatório gerado pelo Gitleaks para um nome padronizado
-      # A action gitleaks/gitleaks-action@v2 por padrão parece gerar 'results.sarif' no diretório raiz
-      # ou 'gitleaks-report.sarif' dependendo da versão/configuração interna.
-      # Verificaremos se um dos nomes comuns existe e o renomearemos/moveremos.
-      # Se o arquivo não existir, o step falhará, o que é bom para depuração.
-      - name: Localizar e Renomear Relatório Gitleaks para 'gitleaks-report.sarif'
-        run: |
-          if [ -f "results.sarif" ]; then
-            echo "Arquivo results.sarif encontrado, renomeando para gitleaks-report.sarif"
-            mv results.sarif gitleaks-report.sarif
-          elif [ -f "gitleaks-report.sarif" ]; then
-            echo "Arquivo gitleaks-report.sarif já existe com o nome correto."
-          else
-            echo "::error::Nenhum arquivo de relatório SARIF (results.sarif ou gitleaks-report.sarif) gerado pelo Gitleaks foi encontrado."
-            exit 1
-          fi
-        # Adicionar continue-on-error: true se quiser que o workflow continue mesmo se o arquivo não for encontrado,
-        # mas para didática, falhar aqui pode ser mais instrutivo.
-        # Para este laboratório, como GITLEAKS_EXIT_CODE é 0 e não esperamos leaks, o arquivo pode estar vazio,
-        # mas ainda deve ser criado.
-
-      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" -> "Code scanning alerts" do GitHub.
-      # Fazer upload do relatório SARIF do Gitleaks (agora com nome padronizado) como artefato.
-      - name: Upload do relatório SARIF do Gitleaks (Artefato)
+      # Passo 4.3: Fazer upload do relatório SARIF do Gitleaks como artefato.
+      - name: Upload do relatório SARIF do Gitleaks (Artefato para download)
         uses: actions/upload-artifact@v4
         with:
           name: Gitleaks-Scan-Results
-          path: gitleaks-report.sarif
-          if-no-files-found: error # Falha o step se o arquivo não for encontrado após a renomeação
+          path: gitleaks-report.sarif # Nome definido em GITLEAKS_REPORT_PATH
+          if-no-files-found: warn # Apenas avisa se o arquivo não for encontrado (ex: nenhum segredo)
 
-      # Passo 4.5: Enviar o relatório SARIF do Gitleaks para a aba "Security" do GitHub.
+      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" do GitHub.
       - name: Upload do resultado SARIF do Gitleaks para GitHub Security
-        if: always() # Tenta fazer o upload mesmo que o Gitleaks tenha encontrado algo (já que GITLEAKS_EXIT_CODE é 0)
+        if: always() && hashFiles('gitleaks-report.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: gitleaks-report.sarif # Caminho para o arquivo SARIF gerado
-          category: gitleaks-juiceshop # Categoria para agrupar os alertas na aba Security    
+          sarif_file: gitleaks-report.sarif
+          category: gitleaks-juiceshop    
 
   # =====================================================================================
-  # ETAPA 5: SCAN DE IMAGEM DE CONTAINER
-  # Objetivo: Analisar uma imagem Docker (neste caso, a oficial do Juice Shop)
-  # em busca de vulnerabilidades conhecidas em seus pacotes de sistema operacional e bibliotecas.
+  # ETAPA 5: SCAN DE IMAGEM DE CONTAINER (Imagem Oficial do Juice Shop)
+  # Objetivo: Analisar a imagem Docker oficial do OWASP Juice Shop em busca de
+  # vulnerabilidades conhecidas em seus pacotes de SO e bibliotecas.
   # Ferramenta: Trivy
   # =====================================================================================
   scan-official-juice-shop-image:
     name: Scan da Imagem Docker Oficial do Juice Shop com Trivy
     runs-on: ubuntu-latest
     permissions:
-      security-events: write # Para Trivy (via upload-sarif) enviar resultados para a aba Security
+      security-events: write
     steps:
-      # Passo 5.1: Checkout do código (apenas para ter acesso ao workflow em si, se necessário para alguma lógica, aqui é mais pro forma)
-      - name: Checkout do código (apenas para contexto do workflow)
+      # Passo 5.1: Checkout do código (apenas para o contexto do workflow, não usado diretamente pelo Trivy aqui)
+      - name: Checkout do código (contexto do workflow)
         uses: actions/checkout@v4
 
       # Passo 5.2: Scan da imagem Docker oficial do Juice Shop usando a action do Trivy.
-      # severity: 'CRITICAL,HIGH' foca nos problemas mais graves.
-      # ignore-unfixed: true evita falhas por vulnerabilidades que ainda não têm correção oficial.
-      # exit-code: '0' é para fins didáticos, para não falhar o build. Em produção, poderia ser '1' para falhar.
       - name: Scan da Imagem Docker Oficial com Trivy
-        uses: aquasecurity/trivy-action@0.30.0 # Verifique a versão mais recente da action
+        uses: aquasecurity/trivy-action@0.30.0 # ATENÇÃO: Verifique a versão mais recente!
         with:
-          image-ref: 'bkimminich/juice-shop:latest' # Imagem oficial do Juice Shop no Docker Hub
-          format: 'sarif' # Formato de saída para integração com GitHub
-          output: 'trivy-juiceshop-official-results.sarif' # Nome do arquivo de resultados
-          severity: 'CRITICAL,HIGH' # Níveis de severidade a serem reportados
-          ignore-unfixed: true # Não falhar se houver vulnerabilidades sem correção disponível
-          exit-code: '0' # Não falhar o build se vulnerabilidades forem encontradas (para fins didáticos)
+          image-ref: 'bkimminich/juice-shop:latest'
+          format: 'sarif'
+          output: 'trivy-juiceshop-official-results.sarif'
+          severity: 'CRITICAL,HIGH' # Foco nas mais graves
+          ignore-unfixed: true      # Não falhar por vulnerabilidades sem correção disponível
+          exit-code: '0'            # Para fins didáticos, não falhar o build
             
       # Passo 5.3: Fazer upload do relatório SARIF do Trivy como artefato.
-      - name: Upload do relatório SARIF do Trivy (Artefato)
+      - name: Upload do relatório SARIF do Trivy (Imagem Oficial - Artefato)
         uses: actions/upload-artifact@v4
         with:
-          name: Trivy-ImageScan-Results
+          name: Trivy-OfficialImageScan-Results
           path: trivy-juiceshop-official-results.sarif
+          if-no-files-found: warn
 
-      # Passo 5.4: Enviar o relatório SARIF do Trivy para a aba "Security" do GitHub.
+      # Passo 5.4: Enviar o relatório SARIF do Trivy (Imagem Oficial) para a aba "Security".
       - name: Upload do resultado SARIF do Trivy (Imagem Oficial) para GitHub Security
-        if: always()
+        if: always() && hashFiles('trivy-juiceshop-official-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-juiceshop-official-results.sarif'
-          category: trivy-juiceshop-image # Categoria para agrupar alertas
+          category: trivy-juiceshop-official-image
 
   # =====================================================================================
   # ETAPA 6: ANÁLISE DINÂMICA DE SEGURANÇA DE APLICAÇÃO (DAST)
-  # Objetivo: Testar a aplicação em execução, simulando ataques e buscando
-  # vulnerabilidades que só se manifestam em runtime.
+  # Objetivo: Testar a aplicação OWASP Juice Shop (rodando em um container Docker)
+  # em execução, simulando ataques e buscando vulnerabilidades de runtime.
   # Ferramenta: OWASP ZAP (Baseline Scan)
   # =====================================================================================
   dast-analysis:
     name: Análise Dinâmica (DAST com ZAP no Juice Shop)
     runs-on: ubuntu-latest
-    # Este job depende do Juice Shop estar rodando e acessível.
     steps:
       # Passo 6.1: Checkout do código do fork do leitor.
-      # Necessário para pegar o arquivo de regras do ZAP (.zap_juiceshop_rules.tsv), se o leitor o criou.
+      # Necessário para acessar o arquivo de regras do ZAP (.zap_juiceshop_rules.tsv), se o leitor o criou.
       - name: Checkout do código (para arquivo de regras do ZAP)
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }} # Pega o código do repositório onde o workflow está rodando (o fork do leitor)
+        # 'repository' não é necessário, pois usa o repo do workflow por padrão
 
       # Passo 6.2: Iniciar o container Docker do OWASP Juice Shop.
-      # O container roda em background (-d) e expõe a porta 3000.
-      # Inclui um loop para aguardar o Juice Shop iniciar antes de prosseguir.
       - name: Iniciar OWASP Juice Shop Docker container
         run: |
           docker pull bkimminich/juice-shop:latest
           docker run -d --name juice-shop-dast -p 3000:3000 bkimminich/juice-shop:latest
-          echo "Aguardando Juice Shop iniciar (pode levar alguns instantes)..."
-          # Loop simples para esperar o Juice Shop responder na porta 3000
+          echo "Aguardando Juice Shop iniciar (pode levar até 2 minutos)..."
+          # Loop melhorado para esperar o Juice Shop responder antes de prosseguir
           timeout 120s bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200"; do echo -n "."; sleep 5; done'
           echo "Juice Shop iniciado!"
 
       # Passo 6.3: Executar o OWASP ZAP Baseline Scan.
-      # Este scan é mais rápido e menos intrusivo, ideal para CI/CD.
-      # cmd_options: '-j' ativa o AJAX Spider, '-T 120' aumenta o timeout do spider.
-      # fail_action: false é para fins didáticos; em produção, poderia ser true.
       - name: Executar OWASP ZAP Baseline Scan no Juice Shop
-        uses: zaproxy/action-baseline@v0.14.0 # Verifique a versão mais recente da action
+        uses: zaproxy/action-baseline@v0.14.0 # ATENÇÃO: Verifique a versão mais recente!
         with:
-          target: 'http://localhost:3000' # URL da aplicação rodando localmente no Docker
-          rules_file_name: '.zap_juiceshop_rules.tsv' # Opcional: Arquivo de regras para ignorar alertas específicos
-          cmd_options: '-j -T 120' # Habilita o AJAX Spider e define timeout para o spider
-          # token: ${{ secrets.GITHUB_TOKEN }} # Opcional: Para criar issues no GitHub com os resultados
-          # issue_title: 'Vulnerabilidades ZAP Encontradas no Juice Shop'
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap_juiceshop_rules.tsv' # Opcional: criado pelo leitor para ignorar alertas
+          cmd_options: '-j -T 120' # AJAX spider ativado, timeout aumentado para o spider
           fail_action: false # Para fins didáticos, não falhar o workflow se encontrar alertas
 
-      # Passo 6.4: Parar e remover o container Docker do Juice Shop após o scan.
+      # Passo 6.4: Parar e remover o container Docker do Juice Shop.
       # "if: always()" garante que este passo execute mesmo se o ZAP scan falhar.
       - name: Parar e remover o container do Juice Shop
-        if: always() # Garante a limpeza mesmo se steps anteriores falharem
+        if: always()
         run: |
-          docker stop juice-shop-dast || true # "|| true" para não falhar se o container já estiver parado
-          docker rm juice-shop-dast || true   # "|| true" para não falhar se o container já tiver sido removido
+          docker stop juice-shop-dast || true
+          docker rm juice-shop-dast || true
 
   # =====================================================================================
-  # ETAPA 7: NOTIFICAÇÃO EM CASO DE FALHA (Exemplo Simples)
+  # ETAPA 7: NOTIFICAÇÃO EM CASO DE FALHA GERAL DA PIPELINE
   # Objetivo: Informar se alguma das etapas críticas da pipeline falhou.
   # Este job só executa se um dos jobs listados em 'needs' tiver falhado.
   # =====================================================================================
   notify-on-failure:
     name: Notificar em Caso de Falha da Pipeline
-    if: failure() # Condição para executar este job: apenas se algum job anterior falhou
-    needs: [lint-files, sast-analysis, sca-analysis, secrets-scan, scan-official-juice-shop-image, dast-analysis] # Lista de jobs dos quais este depende
+    if: failure() # Condição para executar este job
+    # Este job 'needs' (depende de) todos os jobs principais de análise.
+    # Se qualquer um deles falhar, este job será acionado.
+    needs: [lint-files, sast-analysis, sca-analysis, secrets-scan, scan-official-juice-shop-image, dast-analysis]
     runs-on: ubuntu-latest
     steps:
       # Passo 7.1: Enviar uma mensagem de erro visível nos logs da Action.
-      # Em um cenário real, isso poderia ser uma notificação para Slack, e-mail, etc.
       - name: Enviar notificação de falha
         run: |
-          echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
+          echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o OWASP Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
