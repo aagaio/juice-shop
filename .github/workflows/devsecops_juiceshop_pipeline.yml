@@ -57,9 +57,6 @@ jobs:
       # Usamos o repositório oficial para garantir que estamos analisando a versão correta.
       - name: Checkout do código do OWASP Juice Shop
         uses: actions/checkout@v4
-        with:
-          repository: 'juice-shop/juice-shop' # Repositório oficial do Juice Shop
-          ref: 'develop' # Branch de desenvolvimento do Juice Shop
 
       # --- SAST com Semgrep ---
       # Passo 2.2: Instalar a ferramenta Semgrep
@@ -384,4 +381,3 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-  
