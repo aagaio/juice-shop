@@ -227,6 +227,10 @@ jobs:
   secrets-scan:
     name: Varredura de Segredos com Gitleaks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Necessário para o checkout
+      security-events: write # Necessário para fazer upload do SARIF para a aba Security
+      actions: read # Para que a action Gitleaks possa usar o GITHUB_TOKEN
     steps:
       # Passo 4.1: Baixar o código-fonte do OWASP Juice Shop COM HISTÓRICO COMPLETO.
       # fetch-depth: 0 é crucial para que o Gitleaks possa analisar todo o histórico de commits.
@@ -238,34 +242,33 @@ jobs:
            fetch-depth: 0 # Baixa todo o histórico do Git
 
       # Passo 4.2: Executar Gitleaks.
-      # GITHUB_TOKEN é usado pela action para interagir com a API do GitHub (ex: criar issues, se configurado).
-      # GITLEAKS_EXIT_CODE: 0 faz com que o Gitleaks não falhe o build se encontrar segredos (para fins didáticos).
+      # A action gitleaks/gitleaks-action@v2 gerará um relatório SARIF.
+      # Vamos usar variáveis de ambiente para controlar o nome e formato do relatório.
       - name: Executar Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
-          GITLEAKS_EXIT_CODE: 0 # Não falha o build se encontrar segredos
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true # Gera o relatório SARIF
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necessário para a action interagir com GitHub
-        with:
-          report_format: 'sarif'
-          report_path: 'gitleaks-report.sarif' # Nome do arquivo de relatório
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necessário para a action interagir com a API do GitHub (ex: reports enriquecidos)
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false" # DESABILITAMOS o upload automático pela action para ter mais controle
+          GITLEAKS_REPORT_FORMAT: "sarif"          # Definimos explicitamente o formato
+          GITLEAKS_REPORT_PATH: "gitleaks-report.sarif" # Definimos explicitamente o nome do arquivo de saída
+          GITLEAKS_EXIT_CODE: "0"                  # Para fins didáticos, não falha o build se segredos forem encontrados
 
-      # Passo 4.3: Fazer upload do relatório SARIF do Gitleaks como artefato.
-      # (Opcional) A action gitleaks/gitleaks-action@v2 pode já fazer o upload para a aba Security se GITHUB_TOKEN estiver presente e configurado.
-      # Este step garante que o artefato esteja disponível para download.
+      # Passo 4.3: Fazer upload do relatório SARIF do Gitleaks como um artefato do workflow.
+      # Este step encontrará o arquivo 'gitleaks-report.sarif' porque definimos GITLEAKS_REPORT_PATH.
       - name: Upload do relatório SARIF do Gitleaks (Artefato)
         uses: actions/upload-artifact@v4
         with:
-          name: Gitleaks-Results
-          path: gitleaks-report.sarif
-      
-      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" do GitHub.
+          name: Gitleaks-Scan-Results # Nome do artefato que aparecerá nos downloads do workflow
+          path: gitleaks-report.sarif  # Caminho para o arquivo gerado pelo Gitleaks
+
+      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" -> "Code scanning alerts" do GitHub.
+      # Este step também usará o arquivo 'gitleaks-report.sarif'.
       - name: Upload do resultado SARIF do Gitleaks para GitHub Security
-        if: always()
+        if: always() # Garante que tente fazer o upload mesmo se houver outros problemas ( improvável aqui, já que GITLEAKS_EXIT_CODE é 0)
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: gitleaks-report.sarif
-          category: secrets-juiceshop
+          sarif_file: gitleaks-report.sarif # Caminho para o arquivo SARIF gerado
+          category: gitleaks-juiceshop      # Categoria para agrupar os alertas na aba Security
 
   # =====================================================================================
   # ETAPA 5: SCAN DE IMAGEM DE CONTAINER
@@ -381,3 +384,4 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  
