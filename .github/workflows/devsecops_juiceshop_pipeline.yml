@@ -157,9 +157,20 @@ jobs:
       # --- Geração de SBOM com cdxgen (CycloneDX) ---
       # Passo 3.6: Gerar o Software Bill of Materials (SBOM) no formato CycloneDX.
       # O SBOM é uma lista de todos os componentes de software, essencial para a segurança da cadeia de suprimentos.
+      # Adicionamos --project-type nodejs para focar na análise das dependências Node.js.
       - name: Gerar SBOM com cdxgen
         run: |
-          npx @cyclonedx/cdxgen --output bom.json --type application # Executa cdxgen via npx para gerar bom.json
+          echo "Gerando SBOM para o projeto Node.js..."
+          # Usamos 'npx' para executar a versão mais recente sem instalação global.
+          # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
+          # O output (-o) será bom.json.
+          npx @cyclonedx/cdxgen --project-type nodejs --output bom.json --spec-version 1.5 || echo "Falha ao gerar SBOM com cdxgen"
+          # Verificamos se o bom.json foi criado. Se não, o step falhará.
+          if [ ! -f bom.json ]; then
+            echo "::error::Arquivo bom.json não foi gerado pelo cdxgen."
+            exit 1
+          fi
+          echo "SBOM gerado com sucesso: bom.json"
       
       # Passo 3.7: Fazer upload do SBOM gerado como artefato.
       - name: Upload do SBOM (bom.json) como Artefato
@@ -196,6 +207,12 @@ jobs:
             --enableExperimental \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
             --failOnCVSS 7 || true # Continua para upload mesmo se falhar
+          # Adiciona uma verificação explícita da existência do arquivo
+          if [ ! -f dependency-check-results.sarif ]; then
+            echo "::error::Arquivo dependency-check-results.sarif não foi gerado."
+            ls -la # Lista os arquivos no diretório atual para depuração
+            exit 1
+          fi
 
       # Passo 3.11: Fazer upload do relatório SARIF do Dependency-Check como artefato.
       - name: Upload do relatório SARIF do Dependency-Check (Artefato)
@@ -396,4 +413,3 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-  
