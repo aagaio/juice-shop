@@ -165,8 +165,8 @@ jobs:
           # Usamos 'npx' para executar a versão mais recente sem instalação global.
           # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
           # O output (-o) será bom.json.
-          npx @cyclonedx/cdxgen -p . --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
-          ls -la
+          npm install -g @cyclonedx/cdxgen
+          cdxgen -p . --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           # Verificamos se o bom.json foi criado. Se não, o step falhará.
           if [ ! -f bom.json ]; then
             echo "::error::Arquivo bom.json não foi gerado pelo cdxgen."
