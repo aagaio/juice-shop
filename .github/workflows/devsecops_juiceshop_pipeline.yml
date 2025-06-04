@@ -159,7 +159,7 @@ jobs:
           echo "Convertendo resultado do npm audit para SARIF..."
           npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "::warning::Falha ao converter npm audit para SARIF. O arquivo de resultados pode estar vazio ou malformado."
           
-      # Passo Adicional: Modificar o SARIF para compatibilidade com GitHub Security
+          # Passo Adicional: Modificar o SARIF para compatibilidade com GitHub Security
           echo "Modificando npm-audit.sarif para mapear level 'info' para 'note'..."
           if [ -f "npm-audit.sarif" ]; then
             # Usamos sed para substituir "level": "info" por "level": "note"
@@ -428,3 +428,4 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o OWASP Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
