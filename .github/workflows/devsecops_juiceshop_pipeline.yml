@@ -134,7 +134,7 @@ jobs:
       # O comando 'npm install' também gera/atualiza o 'package-lock.json', que é usado por muitas ferramentas SCA.
       - name: Instalar dependências (gera package-lock.json)
         run: |
-          npm install
+          npm i --package-lock-only
 
       # --- SCA com NPM Audit ---
       # Passo 3.4: Executar 'npm audit' para encontrar vulnerabilidades nas dependências Node.js.
