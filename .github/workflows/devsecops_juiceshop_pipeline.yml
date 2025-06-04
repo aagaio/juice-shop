@@ -166,7 +166,7 @@ jobs:
           # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
           # O output (-o) será bom.json.
           npm install -g @cyclonedx/cdxgen
-          cdxgen -p . --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          cdxgen --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           # Verificamos se o bom.json foi criado. Se não, o step falhará.
           if [ ! -f bom.json ]; then
             echo "::error::Arquivo bom.json não foi gerado pelo cdxgen."
@@ -416,3 +416,4 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
