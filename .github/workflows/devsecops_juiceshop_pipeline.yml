@@ -165,8 +165,9 @@ jobs:
           # Usamos 'npx' para executar a versão mais recente sem instalação global.
           # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
           # O output (-o) será bom.json.
-          npm install -g @cyclonedx/cdxgen
-          cdxgen --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          npx @cyclonedx/cdxgen --project-type nodejs --output bom.json --spec-version 1.6 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          # npm install -g @cyclonedx/cdxgen
+          # cdxgen --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           # Verificamos se o bom.json foi criado. Se não, o step falhará.
           if [ ! -f bom.json ]; then
             echo "::error::Arquivo bom.json não foi gerado pelo cdxgen."
@@ -209,13 +210,25 @@ jobs:
             --out dependency-check-results.sarif \
             --enableExperimental \
             --nvdApiKey ${{ secrets.NVD_API_KEY }} \
-            --failOnCVSS 7 || true # Continua para upload mesmo se falhar
-          # Adiciona uma verificação explícita da existência do arquivo
+            --log dependency-check.log \ # Adiciona log detalhado
+            --failOnCVSS 11 # Evita falha por CVSS durante depuração, foque em fazer gerar o arquivo
+            
+          echo "Listando arquivos após Dependency-Check:"
+          ls -la
+          
           if [ ! -f dependency-check-results.sarif ]; then
-            echo "::error::Arquivo dependency-check-results.sarif não foi gerado."
-            ls -la # Lista os arquivos no diretório atual para depuração
-            exit 1
+            echo "::error::Arquivo dependency-check-results.sarif não foi gerado pelo Dependency-Check."
+            if [ -f dependency-check.log ]; then
+              echo "Conteúdo do log de depuração do Dependency-Check:"
+              cat dependency-check.log
+            else
+              echo "Log de depuração do Dependency-Check (dependency-check.log) não encontrado."
+            fi
+            exit 1 # Falha o build se o SARIF não for gerado
+          else
+            echo "Dependency-Check concluído. Relatório: dependency-check-results.sarif"
           fi
+        # continue-on-error: true # Remova ou comente para ver o erro real durante a depuração
 
       # Passo 3.11: Fazer upload do relatório SARIF do Dependency-Check como artefato.
       - name: Upload do relatório SARIF do Dependency-Check (Artefato)
@@ -416,4 +429,3 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
