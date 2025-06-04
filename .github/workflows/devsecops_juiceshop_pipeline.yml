@@ -192,7 +192,9 @@ jobs:
         run: |
           echo "Gerando SBOM especificamente a partir do package-lock.json..."
           # O comando foca apenas no package-lock.json como input.
-          npx @cyclonedx/cdxgen --verbose --output bom.json --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          npm install -g @cyclonedx/cdxgen
+          cdxgen --project-type nodejs --output bom.json --spec-version 1.6 --no-github-workflow
+          # npx @cyclonedx/cdxgen --verbose --output bom.json --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           
           if [ ! -f bom.json ]; then
             echo "::error::Arquivo bom.json (SBOM) NÃO foi gerado pelo cdxgen."
