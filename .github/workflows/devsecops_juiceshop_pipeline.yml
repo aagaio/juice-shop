@@ -122,9 +122,6 @@ jobs:
       # Passo 3.1: Baixar o código-fonte do OWASP Juice Shop
       - name: Checkout do código do OWASP Juice Shop
         uses: actions/checkout@v4
-        with:
-           repository: 'juice-shop/juice-shop'
-           ref: 'develop'
 
       # Passo 3.2: Configurar o ambiente Node.js para instalar dependências
       - name: Configurar Node.js
@@ -234,9 +231,7 @@ jobs:
       - name: Checkout do código Juice Shop (com histórico completo)
         uses: actions/checkout@v4
         with:
-           repository: 'juice-shop/juice-shop'
-           ref: 'develop'
-           fetch-depth: 0 # Baixa todo o histórico do Git
+           fetch-depth: 0 # Crucial para Gitleaks analisar todo o histórico do fork
 
       # Passo 4.2: Executar Gitleaks.
       # A action gitleaks/gitleaks-action@v2 gerará um relatório SARIF.
@@ -247,25 +242,45 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Necessário para a action interagir com a API do GitHub (ex: reports enriquecidos)
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false" # DESABILITAMOS o upload automático pela action para ter mais controle
           GITLEAKS_REPORT_FORMAT: "sarif"          # Definimos explicitamente o formato
-          GITLEAKS_REPORT_PATH: "gitleaks-report.sarif" # Definimos explicitamente o nome do arquivo de saída
           GITLEAKS_EXIT_CODE: "0"                  # Para fins didáticos, não falha o build se segredos forem encontrados
 
-      # Passo 4.3: Fazer upload do relatório SARIF do Gitleaks como um artefato do workflow.
-      # Este step encontrará o arquivo 'gitleaks-report.sarif' porque definimos GITLEAKS_REPORT_PATH.
+      # Passo 4.3: Renomear o relatório gerado pelo Gitleaks para um nome padronizado
+      # A action gitleaks/gitleaks-action@v2 por padrão parece gerar 'results.sarif' no diretório raiz
+      # ou 'gitleaks-report.sarif' dependendo da versão/configuração interna.
+      # Verificaremos se um dos nomes comuns existe e o renomearemos/moveremos.
+      # Se o arquivo não existir, o step falhará, o que é bom para depuração.
+      - name: Localizar e Renomear Relatório Gitleaks para 'gitleaks-report.sarif'
+        run: |
+          if [ -f "results.sarif" ]; then
+            echo "Arquivo results.sarif encontrado, renomeando para gitleaks-report.sarif"
+            mv results.sarif gitleaks-report.sarif
+          elif [ -f "gitleaks-report.sarif" ]; then
+            echo "Arquivo gitleaks-report.sarif já existe com o nome correto."
+          else
+            echo "::error::Nenhum arquivo de relatório SARIF (results.sarif ou gitleaks-report.sarif) gerado pelo Gitleaks foi encontrado."
+            exit 1
+          fi
+        # Adicionar continue-on-error: true se quiser que o workflow continue mesmo se o arquivo não for encontrado,
+        # mas para didática, falhar aqui pode ser mais instrutivo.
+        # Para este laboratório, como GITLEAKS_EXIT_CODE é 0 e não esperamos leaks, o arquivo pode estar vazio,
+        # mas ainda deve ser criado.
+
+      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" -> "Code scanning alerts" do GitHub.
+      # Fazer upload do relatório SARIF do Gitleaks (agora com nome padronizado) como artefato.
       - name: Upload do relatório SARIF do Gitleaks (Artefato)
         uses: actions/upload-artifact@v4
         with:
-          name: Gitleaks-Scan-Results # Nome do artefato que aparecerá nos downloads do workflow
-          path: gitleaks-report.sarif  # Caminho para o arquivo gerado pelo Gitleaks
+          name: Gitleaks-Scan-Results
+          path: gitleaks-report.sarif
+          if-no-files-found: error # Falha o step se o arquivo não for encontrado após a renomeação
 
-      # Passo 4.4: Enviar o relatório SARIF do Gitleaks para a aba "Security" -> "Code scanning alerts" do GitHub.
-      # Este step também usará o arquivo 'gitleaks-report.sarif'.
+      # Passo 4.5: Enviar o relatório SARIF do Gitleaks para a aba "Security" do GitHub.
       - name: Upload do resultado SARIF do Gitleaks para GitHub Security
-        if: always() # Garante que tente fazer o upload mesmo se houver outros problemas ( improvável aqui, já que GITLEAKS_EXIT_CODE é 0)
+        if: always() # Tenta fazer o upload mesmo que o Gitleaks tenha encontrado algo (já que GITLEAKS_EXIT_CODE é 0)
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif # Caminho para o arquivo SARIF gerado
-          category: gitleaks-juiceshop      # Categoria para agrupar os alertas na aba Security
+          category: gitleaks-juiceshop # Categoria para agrupar os alertas na aba Security    
 
   # =====================================================================================
   # ETAPA 5: SCAN DE IMAGEM DE CONTAINER
@@ -381,3 +396,4 @@ jobs:
         run: |
           echo "::error::ALERTA: Um ou mais jobs da pipeline DevSecOps para o Juice Shop falharam!"
           echo "Verifique os detalhes da execução na URL da Action: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  
