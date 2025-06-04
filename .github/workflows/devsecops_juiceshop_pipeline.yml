@@ -158,6 +158,17 @@ jobs:
           npm install -g npm-audit-sarif
           echo "Convertendo resultado do npm audit para SARIF..."
           npm-audit-sarif -o npm-audit.sarif npm-audit-results.json || echo "::warning::Falha ao converter npm audit para SARIF. O arquivo de resultados pode estar vazio ou malformado."
+          
+      # Passo Adicional: Modificar o SARIF para compatibilidade com GitHub Security
+          echo "Modificando npm-audit.sarif para mapear level 'info' para 'note'..."
+          if [ -f "npm-audit.sarif" ]; then
+            # Usamos sed para substituir "level": "info" por "level": "note"
+            # A opção -i edita o arquivo no local. Cuidado com as aspas e escapes.
+            sed -i 's/"level": "info"/"level": "note"/g' npm-audit.sarif
+            echo "Arquivo npm-audit.sarif modificado."
+          else
+            echo "::warning::Arquivo npm-audit.sarif não encontrado para modificação."
+          fi
 
       # Passo 3.5: Fazer upload do relatório SARIF do NPM Audit como artefato.
       - name: Upload do relatório SARIF do NPM Audit (Artefato para download)
