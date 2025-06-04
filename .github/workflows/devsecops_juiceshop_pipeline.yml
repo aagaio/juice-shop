@@ -165,7 +165,7 @@ jobs:
           # Usamos 'npx' para executar a versão mais recente sem instalação global.
           # Especificamos o tipo de projeto e o arquivo de lockfile para maior precisão.
           # O output (-o) será bom.json.
-          npx @cyclonedx/cdxgen --project-type nodejs --output bom.json --spec-version 1.6 --no-github-workflow || echo "Falha ao gerar SBOM com cdxgen"
+          npx @cyclonedx/cdxgen -p . --project-type nodejs --output bom.json --spec-version 1.5 --no-github-workflow || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
           ls -la
           # Verificamos se o bom.json foi criado. Se não, o step falhará.
           if [ ! -f bom.json ]; then
@@ -173,6 +173,7 @@ jobs:
             exit 1
           fi
           echo "SBOM gerado com sucesso: bom.json"
+          head -n 20 bom.json # Mostra as primeiras 20 linhas do SBOM
       
       # Passo 3.7: Fazer upload do SBOM gerado como artefato.
       - name: Upload do SBOM (bom.json) como Artefato
