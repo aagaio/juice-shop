@@ -178,41 +178,42 @@ jobs:
           path: npm-audit.sarif
           if-no-files-found: warn
 
-      # Passo 3.6: Enviar o relatório SARIF do NPM Audit para a aba Security do GitHub.
-      - name: Upload do resultado SARIF do NPM Audit para GitHub Security
-        if: always() && hashFiles('npm-audit.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: npm-audit.sarif
-          category: npm-audit-juiceshop
-
-      # --- Geração de SBOM com cdxgen (CycloneDX) ---
-      # Passo 3.7: Gerar o Software Bill of Materials (SBOM) no formato CycloneDX.
-      - name: Gerar SBOM com cdxgen (CycloneDX)
+      # Passo 3.6: Gerar o Software Bill of Materials (SBOM) no formato CycloneDX JSON usando Syft.
+      # Syft escaneia o diretório do projeto e identifica componentes.
+      - name: Gerar SBOM com Syft (CycloneDX JSON)
         run: |
-          echo "Gerando SBOM especificamente a partir do package-lock.json..."
-          # O comando foca apenas no package-lock.json como input.
-          npm install -g @cyclonedx/cdxgen
-          cdxgen --project-type nodejs --output bom.json --spec-version 1.6 --no-github-workflow package-lock.json
-          # npx @cyclonedx/cdxgen --verbose --output bom.json --no-github-workflow package-lock.json || echo "::warning::Falha ao gerar SBOM com cdxgen. Verifique os logs acima."
+          echo "Instalando Syft..."
+          # Baixa e instala a última versão do Syft
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           
-          if [ ! -f bom.json ]; then
-            echo "::error::Arquivo bom.json (SBOM) NÃO foi gerado pelo cdxgen."
-            # Considerar 'exit 1' se o SBOM for mandatório para o laboratório.
-            # Para fins didáticos, um aviso pode ser suficiente se outros steps precisarem rodar.
-            echo "::warning::Arquivo bom.json (SBOM) NÃO foi gerado pelo cdxgen."
+          echo "Verificando se package-lock.json existe (Syft o utilizará para dependências Node.js)..."
+          if [ ! -f "package-lock.json" ]; then
+            echo "::warning::Arquivo package-lock.json não encontrado. A análise de dependências do Syft pode ser limitada."
+            # Mesmo sem o lockfile, Syft tentará catalogar o que encontrar, mas o ideal é tê-lo.
           else
-            echo "SBOM (bom.json) gerado com sucesso."
-            # head -n 20 bom.json # Descomente para ver o início do SBOM nos logs
+            echo "package-lock.json encontrado."
           fi
-      
-      # Passo 3.8: Fazer upload do SBOM gerado (bom.json) como artefato.
-      - name: Upload do SBOM CycloneDX (bom.json) como Artefato
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-cyclonedx-juiceshop
-          path: bom.json
-          if-no-files-found: warn # Apenas avisa se o SBOM não foi gerado
+          
+          echo "Gerando SBOM do diretório atual ('.') com Syft no formato CycloneDX JSON..."
+          # O comando 'syft .' analisa o diretório atual.
+          # '-o cyclonedx-json' especifica o formato de saída.
+          # O output é direcionado para 'bom.json'.
+          syft . -o cyclonedx-json=bom.json || echo "::warning::Falha ao gerar SBOM com Syft. Verifique os logs acima."
+          
+          # Verificamos se o bom.json foi criado E se contém componentes
+          if [ ! -s bom.json ]; then # -s verifica se o arquivo existe E não é vazio
+            echo "::error::Arquivo bom.json (SBOM) NÃO foi gerado pelo Syft ou está vazio."
+            ls -la # Lista arquivos para depuração
+            exit 1 # Considerar falhar o build se o SBOM é crucial
+          elif grep -q '"components": \[\s*\]' bom.json; then
+            echo "::warning::Arquivo bom.json foi gerado pelo Syft, mas parece estar vazio de componentes da aplicação."
+            echo "Conteúdo completo do bom.json para depuração:"
+            cat bom.json
+          else
+            echo "SBOM (bom.json) gerado com sucesso via Syft e contém componentes."
+            echo "Conteúdo inicial do bom.json:"
+            head -n 30 bom.json
+          fi
 
       # --- SCA com OWASP Dependency-Check ---
       # Passo 3.9: Configurar Java, pois Dependency-Check é uma ferramenta Java.
