@@ -214,6 +214,14 @@ jobs:
             echo "Conteúdo inicial do bom.json:"
             head -n 30 bom.json
           fi
+        shell: bash # Ajustado para bash padrão, mas o seu original também funciona
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4 # Use a versão mais recente
+        with:
+          name: sbom-cyclonedx # Nome do artefato que aparecerá no GitHub
+          path: bom.json       # Caminho para o arquivo a ser carregado
+          if-no-files-found: error # Falhar se o bom.json não for encontrado
 
       # --- SCA com OWASP Dependency-Check ---
       # Passo 3.9: Configurar Java, pois Dependency-Check é uma ferramenta Java.
