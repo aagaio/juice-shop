@@ -1,0 +1,111 @@
+# .github/workflows/proveniencia-deploy.yml
+# =====================================================================================
+# FECHAMENTO DO CICLO: PROVENIENCIA + DEPLOY PROVADO (opcional)
+# Objetivo: construir a imagem da aplicacao a partir do SEU fork, atestar a sua
+# proveniencia (SLSA / in-toto, assinada via Sigstore/OIDC) e so entao "publicar",
+# usando a verificacao da proveniencia como portao. E o controle do mini-laboratorio
+# do Cap. 15, agora sobre o artefato real.
+# Roda SOB DEMANDA para nao pesar na esteira principal de varredura.
+# =====================================================================================
+name: Proveniencia e Deploy Provado (Cap. 21 - Fechamento)
+
+on:
+  workflow_dispatch: # Acionamento manual pela aba Actions. Nao roda a cada push.
+
+# Permissoes no nivel do workflow. Repare nas tres ultimas: sao o que autoriza
+# a esteira a publicar a imagem e a assinar/registrar a proveniencia.
+permissions:
+  contents: read       # Ler o codigo do fork (checkout)
+  packages: write      # Publicar a imagem no GitHub Container Registry (GHCR)
+  id-token: write      # OIDC: assinar a proveniencia SEM segredo de longa duracao
+  attestations: write  # Registrar a atestacao de proveniencia no repositorio
+
+jobs:
+  # -----------------------------------------------------------------------------------
+  # JOB 1: Construir a imagem do fork e atestar a sua proveniencia.
+  # -----------------------------------------------------------------------------------
+  build-e-atesta:
+    name: Construir a imagem do fork e atestar a proveniencia
+    runs-on: ubuntu-latest
+    # Exportamos o nome e o digest da imagem para o job de verificacao usar.
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      # Passo 1.1: Baixar o codigo do fork (que contem o Dockerfile do Juice Shop).
+      - name: Checkout do codigo (fork do leitor)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Passo 1.2: Montar o nome da imagem em MINUSCULAS.
+      # O GHCR exige o caminho todo minusculo; github.repository pode ter maiusculas.
+      # A sintaxe ${GITHUB_REPOSITORY,,} do bash converte para minusculas.
+      - name: Definir o nome da imagem (minusculo)
+        id: vars
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      # Passo 1.3: Autenticar no GHCR. Nao e preciso criar segredo: o GITHUB_TOKEN
+      # ja existe e, com 'packages: write' acima, tem escopo para publicar.
+      - name: Login no GitHub Container Registry (GHCR)
+        uses: docker/login-action@<SHA> # v3 - fixe pelo hash, como no resto da esteira
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Passo 1.4: Construir a imagem a partir do Dockerfile do fork e publica-la.
+      # O 'id: push' nos da acesso ao digest (sha256:...) da imagem publicada,
+      # que e a identidade imutavel do artefato — e o que a proveniencia vai fixar.
+      - name: Construir e publicar a imagem
+        id: push
+        uses: docker/build-push-action@<SHA> # v6 - fixe pelo hash
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.vars.outputs.image }}:lab
+
+      # Passo 1.5: Gerar a atestacao de proveniencia da IMAGEM, identificada pelo digest.
+      # 'push-to-registry: true' anexa a atestacao a propria imagem no GHCR.
+      # A assinatura usa OIDC (Sigstore): nenhuma chave privada para guardar.
+      - name: Gerar atestacao de proveniencia (SLSA / in-toto) da imagem
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ steps.vars.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  # -----------------------------------------------------------------------------------
+  # JOB 2: Verificar a proveniencia ANTES de publicar. Este job E o portao.
+  # -----------------------------------------------------------------------------------
+  deploy:
+    name: Verificar a proveniencia e (simbolicamente) publicar
+    needs: build-e-atesta # So comeca depois que a imagem foi construida e atestada.
+    runs-on: ubuntu-latest
+    # Verificar NAO assina nada, entao aqui NAO pedimos id-token nem attestations.
+    # Principio do menor privilegio: so o que este job realmente precisa.
+    permissions:
+      contents: read
+      packages: read # Ler a imagem e a atestacao no GHCR
+    steps:
+      # Passo 2.1: Autenticar no GHCR para conseguir ler a imagem (privada por padrao).
+      - name: Login no GHCR (para ler a imagem e a atestacao)
+        uses: docker/login-action@<SHA> # v3 - fixe pelo hash
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Passo 2.2: O PORTAO. O gh procura a atestacao pelo digest da imagem.
+      # Se a imagem nao tiver proveniencia valida ligada a este repositorio, o
+      # comando falha, este passo falha, o job falha — e o Passo 2.3 nunca roda.
+      - name: Verificar a proveniencia da imagem
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh attestation verify \
+            oci://${{ needs.build-e-atesta.outputs.image }}@${{ needs.build-e-atesta.outputs.digest }} \
+            --repo ${{ github.repository }}
+
+      # Passo 2.3: Deploy simbolico. So chega aqui quem passou pelo portao.
+      # Num projeto real, este passo publicaria a imagem verificada de fato.
+      - name: Deploy (simbolico)
+        run: echo "Proveniencia verificada. Publicando a imagem ${{ needs.build-e-atesta.outputs.image }}..."
