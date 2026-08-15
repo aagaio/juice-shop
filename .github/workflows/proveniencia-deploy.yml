@@ -46,7 +46,7 @@ jobs:
       # Passo 1.3: Autenticar no GHCR. Nao e preciso criar segredo: o GITHUB_TOKEN
       # ja existe e, com 'packages: write' acima, tem escopo para publicar.
       - name: Login no GitHub Container Registry (GHCR)
-        uses: docker/login-action@<SHA> # v3 - fixe pelo hash, como no resto da esteira
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -57,7 +57,7 @@ jobs:
       # que e a identidade imutavel do artefato — e o que a proveniencia vai fixar.
       - name: Construir e publicar a imagem
         id: push
-        uses: docker/build-push-action@<SHA> # v6 - fixe pelo hash
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           push: true
@@ -88,7 +88,7 @@ jobs:
     steps:
       # Passo 2.1: Autenticar no GHCR para conseguir ler a imagem (privada por padrao).
       - name: Login no GHCR (para ler a imagem e a atestacao)
-        uses: docker/login-action@<SHA> # v3 - fixe pelo hash
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
